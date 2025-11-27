@@ -1,0 +1,96 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{color}
+\usepackage{geometry}
+
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+\title{\textbf{TP1: De la conception au déploiement de modèles de Deep Learning}}
+\author{Ton Nom \\ Master 2 Génie Informatique \\ ENSPY}
+\date{22 Septembre 2025}
+
+\begin{document}
+
+\maketitle
+
+\section*{Introduction}
+Ce rapport présente les résultats des travaux pratiques concernant le cycle de vie d'un modèle de Deep Learning, de l'entraînement sur MNIST au déploiement via Docker[cite: 6].
+
+\section{Partie 1: Fondations du Deep Learning}
+
+\subsection*{Question 1: Couches Dense, Dropout et Softmax}
+
+La couche \textbf{Dense (Fully Connected)} est la couche fondamentale où chaque neurone est connecté à chaque neurone de la couche précédente, permettant au modèle d'apprendre des relations complexes entre les caractéristiques d'entrée. Elle applique une transformation linéaire suivie d'une fonction d'activation (ici, ReLU) : $Y = f(W X + b)$.
+
+La couche \textbf{Dropout} est une technique de régularisation qui consiste à désactiver aléatoirement un certain pourcentage de neurones (ici, $20\%$, soit $0.2$) pendant l'entraînement[cite: 43].
+\begin{itemize}
+    \item \textbf{Utilité :} Elle empêche la co-dépendance entre les neurones et réduit le \textbf{surapprentissage (overfitting)} du modèle sur les données d'entraînement.
+\end{itemize}
+
+La fonction d'activation \textbf{Softmax} est utilisée dans la couche de sortie pour les problèmes de \textbf{classification multi-classes} (comme MNIST, qui a 10 classes, 0 à 9)[cite: 44].
+\begin{itemize}
+    \item \textbf{Utilité :} Elle prend les valeurs numériques (logits) de la dernière couche et les transforme en une distribution de probabilités, où la somme des probabilités pour toutes les classes est égale à 1. La classe ayant la probabilité la plus élevée est la prédiction finale du modèle.
+\end{itemize}
+
+\subsection*{Question 2: Optimiseur Adam vs SGD}
+
+L'optimiseur \textbf{Adam (Adaptive Moment Estimation)} [cite: 49] est une amélioration majeure par rapport à la \textbf{Descente de Gradient Stochastique simple (SGD)}. Tandis que la SGD utilise le même taux d'apprentissage (learning rate) pour tous les paramètres du modèle tout au long de l'entraînement, Adam ajuste dynamiquement le taux d'apprentissage pour chaque paramètre individuel.
+
+\textbf{Adam combine deux concepts clés :}
+
+\begin{itemize}
+    \item \textbf{Momentum :} Il utilise une moyenne mobile des gradients passés pour accélérer la convergence dans les directions pertinentes et amortir les oscillations.
+    \item \textbf{RMSprop (Root Mean Square Propagation) :} Il utilise une moyenne mobile des carrés des gradients pour adapter le taux d'apprentissage. Plus un gradient est grand, plus le taux d'apprentissage correspondant est réduit, et inversement.
+\end{itemize}
+
+\textbf{Avantage principal :} Adam est généralement plus rapide à converger, nécessite moins d'ajustement manuel du taux d'apprentissage initial, et performe mieux dans la majorité des problèmes de Deep Learning.
+
+\subsection*{Question 3: Vectorisation et calcul par lots}
+
+Ces deux concepts sont cruciaux pour l'efficacité du Deep Learning.
+\begin{itemize}
+    \item \textbf{Vectorisation :} C'est la capacité d'effectuer des opérations sur des tableaux entiers (tenseurs) sans utiliser de boucles explicites. Les bibliothèques comme NumPy et TensorFlow/Keras exploitent le parallélisme matériel pour exécuter ces opérations rapidement. Dans le code, la normalisation des données et les calculs effectués par les couches \texttt{Dense} ($W X + b$) sont des opérations vectorisées.
+    \item \textbf{Calcul par lots (Batch Processing) :} Il s'agit de diviser l'ensemble des données d'entraînement en sous-ensembles de taille fixe, appelés \textbf{lots} ou \textbf{batches}. Dans le code, l'argument \texttt{batch\_size=128} [cite: 63] spécifie que le modèle mettra à jour ses poids et biais après avoir traité 128 échantillons de données à la fois. Cela optimise l'utilisation de la mémoire et la vitesse de convergence.
+\end{itemize}
+
+\section{Partie 2: Ingénierie du Deep Learning}
+
+\subsection*{Suivi MLflow}
+% Cette section sera remplie après l'Exercice 3 (captures d'écran des métriques MLflow).
+
+\subsection*{Déploiement et CI/CD}
+
+\subsubsection*{Question 1: Pipeline CI/CD}
+
+Un pipeline de CI/CD (Intégration et Livraison Continues), tel qu'implémenté avec \textbf{GitHub Actions}, permet d'automatiser l'ensemble du processus après la soumission du code[cite: 195].
+
+\textbf{Étapes clés pour le déploiement sur Google Cloud Run (ou service équivalent) :}
+
+\begin{enumerate}
+    \item \textbf{Trigger (Déclencheur) :} L'action est déclenchée par un \texttt{git push} sur la branche principale.
+    \item \textbf{Build (Construction) :} L'image Docker est construite en utilisant le \texttt{Dockerfile} du projet[cite: 177]. Elle est ensuite taguée et poussée vers un registre de conteneurs (ex: Google Artifact Registry).
+    \item \textbf{Deploy (Déploiement) :} L'action se connecte à la plateforme Cloud et exécute une commande de déploiement pour rendre le nouveau conteneur actif sur le service Cloud Run[cite: 195].
+\end{enumerate}
+
+\subsubsection*{Question 2: Monitoring en production}
+
+Une fois le modèle d'inférence déployé, il est essentiel de surveiller son comportement en temps réel[cite: 196].
+
+Trois types d'indicateurs clés (KPIs) pour le monitoring en production sont[cite: 197]:
+
+\begin{enumerate}
+    \item \textbf{Indicateurs d'Infrastructure/Performance (Technique) :} Mesurent la santé de l'API. Les indicateurs clés sont la \textbf{Latence de l'API} (temps de réponse) et le \textbf{Taux d'erreurs} (HTTP 5xx).
+    \item \textbf{Indicateurs de Modèle (Qualité des Prédictions) :} Mesurent la pertinence du modèle. Le \textbf{Drift des données (Data Drift)} (changement de la distribution des données d'entrée) et la \textbf{Distribution des Prédictions} sont vitaux pour identifier une dégradation de la performance.
+    \item \textbf{Indicateurs Métiers/Opérationnels :} Mesurent l'activité. Le \textbf{Throughput (Débit)} (requêtes par seconde) est crucial pour la mise à l'échelle et la planification des capacités.
+\end{enumerate}
+
+
+\section*{Conclusion}
+% Bilan du TP.
+
+\end{document}
