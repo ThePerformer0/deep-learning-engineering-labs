@@ -1,0 +1,6 @@
+tensorflow
+numpy
+pandas
+mlflow
+flask
+gunicorn
