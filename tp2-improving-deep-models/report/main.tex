@@ -1,0 +1,304 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+% Configuration de la géométrie de la page
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+\title{\textbf{TP2: Amélioration des Modèles de Deep Learning}}
+\author{FEKE JIMMY WILSON \\ Master 2 Génie Informatique \\ Matricule : 21P474 \\ ENSPY}
+\date{8 Décembre 2025}
+
+\begin{document}
+
+\maketitle
+
+\section{Partie 1: Techniques de Régularisation}
+
+\subsection*{Question 1: Régularisation L2 (L2 Regularization)}
+
+La \textbf{régularisation L2} est une technique de régularisation qui ajoute une pénalité sur les poids élevés du modèle pour réduire le surapprentissage. Elle fonctionne en ajoutant un terme de pénalité à la fonction de perte.
+
+\textbf{Formule mathématique :}
+$$L_{total} = L_{original} + \lambda \sum_{i} w_i^2$$
+
+où $\lambda$ (l2\_lambda) est le coefficient de régularisation et $w_i$ sont les poids du modèle.
+
+\textbf{Implémentation dans notre modèle :}
+\begin{itemize}
+    \item Utilisation de \texttt{kernel\_regularizer=regularizers.l2(lambda)} sur les couches Dense
+    \item Coefficient de régularisation : $\lambda = 0.001$
+    \item Appliqué sur la couche cachée (512 neurones) et la couche de sortie
+\end{itemize}
+
+\textbf{Avantages :}
+\begin{enumerate}
+    \item \textbf{Réduction du surapprentissage :} En pénalisant les poids élevés, le modèle devient moins complexe et généralise mieux
+    \item \textbf{Amélioration de la généralisation :} Le modèle est moins sensible aux variations des données d'entraînement
+    \item \textbf{Stabilité numérique :} Les poids restent dans une plage raisonnable, évitant les explosions de gradients
+\end{enumerate}
+
+\textbf{Impact observé :} La régularisation L2, combinée avec les autres techniques, a permis d'obtenir une précision de test de \textbf{97.62\%} avec une bonne généralisation (écart faible entre train et validation).
+
+\subsection*{Question 2: Batch Normalization}
+
+La \textbf{Batch Normalization} est une technique qui normalise les activations de chaque couche en utilisant la moyenne et la variance du batch courant pendant l'entraînement.
+
+\textbf{Principe :}
+\begin{itemize}
+    \item Normalise les activations : $\hat{x} = \frac{x - \mu}{\sqrt{\sigma^2 + \epsilon}}$
+    \item Applique une transformation affine : $y = \gamma \hat{x} + \beta$
+    \item Où $\gamma$ et $\beta$ sont des paramètres appris pendant l'entraînement
+\end{itemize}
+
+\textbf{Implémentation dans notre modèle :}
+\begin{itemize}
+    \item Ajout de \texttt{BatchNormalization()} après la première couche Dense
+    \item Placée entre la couche Dense et le Dropout
+    \item Activée par défaut (\texttt{use\_batch\_norm = True})
+\end{itemize}
+
+\textbf{Avantages :}
+\begin{enumerate}
+    \item \textbf{Stabilisation de l'entraînement :} Normalise les distributions d'activation, réduisant la covariance shift interne
+    \item \textbf{Accélération de la convergence :} Permet d'utiliser des taux d'apprentissage plus élevés
+    \item \textbf{Réduction de la sensibilité à l'initialisation :} Le modèle est moins dépendant de l'initialisation des poids
+    \item \textbf{Effet de régularisation :} Agit comme une forme de régularisation, réduisant le besoin de Dropout
+\end{enumerate}
+
+\textbf{Impact observé :} La Batch Normalization a contribué à une convergence plus stable et rapide, avec une amélioration notable de la stabilité des métriques pendant l'entraînement.
+
+\subsection*{Question 3: Early Stopping}
+
+L'\textbf{Early Stopping} est un mécanisme qui arrête automatiquement l'entraînement lorsque la performance sur le jeu de validation cesse de s'améliorer.
+
+\textbf{Configuration dans notre modèle :}
+\begin{itemize}
+    \item Callback \texttt{EarlyStopping} avec patience de 5 epochs
+    \item Surveille la métrique \texttt{val\_loss}
+    \item Restaure automatiquement les meilleurs poids (\texttt{restore\_best\_weights = True})
+\end{itemize}
+
+\textbf{Principe de fonctionnement :}
+\begin{enumerate}
+    \item Pendant l'entraînement, la perte de validation est surveillée à chaque epoch
+    \item Si aucune amélioration n'est observée pendant \texttt{patience} epochs consécutifs, l'entraînement s'arrête
+    \item Les poids du meilleur epoch (meilleure performance de validation) sont restaurés
+\end{enumerate}
+
+\textbf{Avantages :}
+\begin{enumerate}
+    \item \textbf{Prévention du surapprentissage :} Arrête l'entraînement avant que le modèle ne commence à surapprendre
+    \item \textbf{Économie de temps de calcul :} Évite d'entraîner inutilement pendant de nombreux epochs
+    \item \textbf{Optimisation automatique :} Trouve automatiquement le point optimal d'arrêt
+    \item \textbf{Meilleure généralisation :} Restaure les poids du meilleur modèle sur la validation
+\end{enumerate}
+
+\textbf{Impact observé :} Dans notre cas, l'early stopping n'a pas été déclenché (20 epochs complétés), mais il est prêt à s'activer si nécessaire, garantissant que nous utilisons toujours le meilleur modèle.
+
+\section{Partie 2: Comparaison et Analyse des Performances}
+
+\subsection*{Comparaison TP1 vs TP2}
+
+\subsubsection*{Architecture et Techniques}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Caractéristique} & \textbf{TP1 (Baseline)} & \textbf{TP2 (Amélioré)} \\
+\midrule
+Couches Dense & 2 (512, 10) & 2 (512, 10) \\
+Dropout & Oui (0.2) & Oui (0.3) \\
+Régularisation L2 & Non & Oui ($\lambda=0.001$) \\
+Batch Normalization & Non & Oui \\
+Early Stopping & Non & Oui (patience=5) \\
+Epochs & 5 & 20 (avec early stopping) \\
+\bottomrule
+\end{tabular}
+\caption{Comparaison des architectures et techniques}
+\end{table}
+
+\subsubsection*{Hyperparamètres}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lcc}
+\toprule
+\textbf{Paramètre} & \textbf{TP1} & \textbf{TP2} \\
+\midrule
+\texttt{epochs} & 5 & 20 \\
+\texttt{batch\_size} & 128 & 128 \\
+\texttt{optimizer} & adam & adam \\
+\texttt{dropout\_rate} & 0.2 & 0.3 \\
+\texttt{l2\_lambda} & - & 0.001 \\
+\texttt{use\_batch\_norm} & - & True \\
+\texttt{early\_stopping\_patience} & - & 5 \\
+\bottomrule
+\end{tabular}
+\caption{Comparaison des hyperparamètres}
+\end{table}
+
+\subsection*{Résultats Obtenus}
+
+\subsubsection*{Métriques du Modèle Amélioré (TP2)}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lc}
+\toprule
+\textbf{Métrique} & \textbf{Valeur} \\
+\midrule
+Test Accuracy & \textbf{97.62\%} (0.9762) \\
+Test Loss & 0.1673 \\
+Best Val Accuracy & 97.82\% (0.9782) \\
+Best Val Loss & 0.1675 \\
+Final Val Accuracy & 97.80\% (0.9780) \\
+Final Val Loss & 0.1675 \\
+Epochs utilisés & 20 (early stopping non déclenché) \\
+\bottomrule
+\end{tabular}
+\caption{Résultats du modèle amélioré}
+\end{table}
+
+\subsubsection*{Analyse des Performances}
+
+\textbf{Points forts du modèle amélioré :}
+\begin{enumerate}
+    \item \textbf{Excellente généralisation :} La différence entre la précision de validation (97.82\%) et de test (97.62\%) est faible (0.20\%), indiquant une bonne généralisation sans surapprentissage significatif
+    \item \textbf{Stabilité :} Les métriques de validation sont stables et cohérentes, grâce à la Batch Normalization
+    \item \textbf{Robustesse :} La combinaison de régularisation L2, Batch Normalization et Dropout augmenté (0.3) crée un modèle robuste
+    \item \textbf{Optimisation :} L'early stopping garantit que nous utilisons le meilleur modèle possible
+\end{enumerate}
+
+\textbf{Impact des techniques d'amélioration :}
+\begin{itemize}
+    \item \textbf{Régularisation L2 :} Contribue à réduire le surapprentissage en pénalisant les poids élevés
+    \item \textbf{Batch Normalization :} Stabilise l'entraînement et permet une convergence plus rapide
+    \item \textbf{Early Stopping :} Prêt à arrêter l'entraînement si nécessaire, optimisant le temps de calcul
+    \item \textbf{Dropout augmenté (0.2 $\rightarrow$ 0.3) :} Force le modèle à être plus robuste en désactivant plus de neurones
+\end{itemize}
+
+\section{Partie 3: Tracking MLflow et Expérimentations}
+
+\subsection*{Améliorations du Tracking MLflow}
+
+Le tracking MLflow a été enrichi pour suivre les nouvelles techniques et métriques :
+
+\textbf{Nouvelles métriques trackées :}
+\begin{itemize}
+    \item \texttt{final\_val\_accuracy} : Précision finale sur le jeu de validation
+    \item \texttt{best\_val\_accuracy} : Meilleure précision de validation atteinte
+    \item \texttt{final\_val\_loss} : Perte finale sur le jeu de validation
+    \item \texttt{best\_val\_loss} : Meilleure perte de validation atteinte
+    \item \texttt{actual\_epochs} : Nombre réel d'epochs utilisés (si early stopping)
+\end{itemize}
+
+\textbf{Nouveaux hyperparamètres trackés :}
+\begin{itemize}
+    \item \texttt{l2\_lambda} : Coefficient de régularisation L2
+    \item \texttt{use\_batch\_norm} : Flag indiquant l'utilisation de Batch Normalization
+    \item \texttt{early\_stopping\_patience} : Patience pour l'early stopping
+    \item \texttt{regularization\_applied} : Flag indiquant l'application de régularisation
+\end{itemize}
+
+\textbf{Avantages du tracking amélioré :}
+\begin{enumerate}
+    \item \textbf{Comparaison facilitée :} Permet de comparer facilement les runs du TP1 et TP2 via l'interface MLflow
+    \item \textbf{Analyse détaillée :} Suit à la fois les métriques finales et les meilleures métriques atteintes
+    \item \textbf{Reproductibilité :} Tous les hyperparamètres sont enregistrés pour permettre la reproduction des résultats
+    \item \textbf{Optimisation :} Facilite l'analyse de l'impact de chaque technique sur les performances
+\end{enumerate}
+
+\subsection*{Expérimentations et Hyperparamètres}
+
+\textbf{Choix des hyperparamètres :}
+\begin{itemize}
+    \item \texttt{l2\_lambda = 0.001} : Valeur standard qui offre un bon équilibre entre régularisation et performance
+    \item \texttt{dropout\_rate = 0.3} : Augmenté de 0.2 à 0.3 pour renforcer la régularisation
+    \item \texttt{early\_stopping\_patience = 5} : Permet une tolérance raisonnable aux fluctuations de la validation loss
+    \item \texttt{epochs = 20} : Augmenté de 5 à 20 pour permettre à l'early stopping de fonctionner efficacement
+\end{itemize}
+
+\textbf{Pistes d'amélioration futures :}
+\begin{enumerate}
+    \item \textbf{Hyperparamètres à tester :}
+    \begin{itemize}
+        \item \texttt{l2\_lambda} : Tester différentes valeurs (0.0001, 0.001, 0.01)
+        \item \texttt{dropout\_rate} : Expérimenter avec 0.2, 0.3, 0.4, 0.5
+        \item \texttt{early\_stopping\_patience} : Ajuster selon les besoins (3, 5, 7, 10)
+    \end{itemize}
+    \item \textbf{Architecture :}
+    \begin{itemize}
+        \item Ajouter des couches supplémentaires pour augmenter la capacité du modèle
+        \item Tester différentes tailles de couches cachées (256, 512, 1024)
+        \item Expérimenter avec différentes fonctions d'activation
+    \end{itemize}
+    \item \textbf{Optimisation :}
+    \begin{itemize}
+        \item Tester différents optimiseurs (RMSprop, SGD avec momentum)
+        \item Implémenter un learning rate scheduler
+        \item Ajuster le learning rate de l'optimiseur Adam
+    \end{itemize}
+\end{enumerate}
+
+\section{Partie 4: Conteneurisation et Déploiement}
+
+\subsection*{Dockerfile pour le TP2}
+
+Un Dockerfile a été créé pour permettre la conteneurisation de l'environnement d'entraînement. Cette approche garantit :
+
+\begin{enumerate}
+    \item \textbf{Reproductibilité :} L'environnement d'exécution est identique sur toutes les machines
+    \item \textbf{Isolation :} Les dépendances sont isolées et ne polluent pas l'environnement système
+    \item \textbf{Portabilité :} Le conteneur peut être exécuté sur n'importe quelle machine avec Docker
+    \item \textbf{CI/CD :} Facilite l'intégration dans des pipelines d'automatisation
+\end{enumerate}
+
+\textbf{Structure du Dockerfile :}
+\begin{itemize}
+    \item Utilise une approche multi-stage pour minimiser la taille finale
+    \item Étape de construction : Installation des dépendances
+    \item Étape de production : Image finale optimisée
+    \item Copie du code source et des modèles
+    \item Configuration pour l'exécution du script d'entraînement
+\end{itemize}
+
+\section*{Conclusion}
+
+Ce TP2 a permis d'explorer et d'implémenter des techniques avancées d'amélioration des modèles de deep learning. Les principales contributions sont :
+
+\begin{enumerate}
+    \item \textbf{Régularisation L2 :} Réduction efficace du surapprentissage en pénalisant les poids élevés
+    \item \textbf{Batch Normalization :} Stabilisation de l'entraînement et accélération de la convergence
+    \item \textbf{Early Stopping :} Optimisation automatique du temps d'entraînement et prévention du surapprentissage
+    \item \textbf{Tracking amélioré :} Suivi détaillé des métriques pour une analyse approfondie
+\end{enumerate}
+
+\textbf{Résultats obtenus :}
+Le modèle amélioré a atteint une précision de test de \textbf{97.62\%} avec une excellente généralisation (écart train-validation de seulement 0.20\%). Ces résultats démontrent l'efficacité des techniques de régularisation et d'optimisation implémentées.
+
+\textbf{Enseignements clés :}
+\begin{itemize}
+    \item La régularisation est essentielle pour éviter le surapprentissage et améliorer la généralisation
+    \item La Batch Normalization stabilise et accélère significativement l'entraînement
+    \item L'early stopping optimise le temps d'entraînement tout en préservant les performances
+    \item Le tracking MLflow permet de comparer et analyser efficacement les différentes expérimentations
+\end{itemize}
+
+Ce travail constitue une base solide pour l'exploration de techniques plus avancées et l'optimisation de modèles de deep learning dans des contextes de production.
+
+\section*{Référence au Code Source}
+
+Conformément aux bonnes pratiques de l'ingénierie logicielle, le code source complet (script d'entraînement amélioré, Dockerfile et documentation) est versionné et disponible sur GitHub à l'adresse suivante :
+
+\url{https://github.com/ThePerformer0/deep-learning-engineering-labs/tree/main/tp2-improving-deep-models}
+
+\end{document}
+
