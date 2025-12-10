@@ -1,0 +1,87 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+\title{\textbf{TP3 : Réseaux de Convolution et Vision par Ordinateur}}
+\author{FEKE JIMMY WILSON \\ Master 2 Génie Informatique \\ Matricule : 21P474 \\ ENSPY}
+
+\begin{document}
+
+\maketitle
+
+\section{Objectifs}
+\begin{itemize}
+    \item Comprendre convolution, pooling et passage vers les couches denses.
+    \item Implémenter un CNN basique pour CIFAR-10.
+    \item Illustrer les blocs résiduels (type ResNet) et leur intérêt.
+    \item Aborder segmentation, détection et style transfer.
+\end{itemize}
+
+\section{Fondamentaux CNN}
+\subsection*{Convolution}
+Un filtre (kernel) est une petite matrice de poids qui balaie l'image. Le \textbf{stride} détermine le pas du balayage. La convolution apprend des filtres qui capturent des motifs locaux (bords, textures), objectif principal d'une couche convolutionnelle : extraire des \emph{features} spatiales hiérarchiques avec peu de paramètres grâce au partage de poids.
+
+\subsection*{Pooling}
+\begin{itemize}
+    \item \textbf{Max Pooling} : conserve le maximum d'une région, robuste au bruit.
+    \item \textbf{Average Pooling} : moyenne locale, plus lisse.
+\end{itemize}
+Rôle : réduction de dimension, translation tolerance, régularisation légère.
+
+\subsection*{De l'image aux couches denses}
+Les cartes de features (H$\times$W$\times$C) sont aplaties (\texttt{Flatten}) ou agrégées (\texttt{GlobalAveragePooling}) pour alimenter des couches \texttt{Dense} qui font la décision finale (classification).
+
+\subsection*{Réseaux Résiduels (ResNet)}
+Les connexions de saut (skip) adressent le problème de \textbf{vanishing gradient} et la dégradation dans les réseaux profonds. En ajoutant l'entrée $x$ à la sortie transformée $F(x)$, on apprend une \emph{résiduelle} $F(x)$ plutôt que la fonction complète, ce qui facilite l'optimisation et permet des réseaux plus profonds.
+
+\section{Mise en pratique CIFAR-10}
+\subsection*{Préparation des données}
+Normalisation des pixels en [0,1], one-hot encoding des labels, vérification des shapes (cf. \texttt{cnn\_classification.py}).
+
+\subsection*{CNN basique}
+Architecture : Conv(32,3$\times$3) + MaxPool, Conv(64,3$\times$3) + MaxPool, Flatten, Dense(512), Dense(10, softmax). Entraînement : 10 époques, batch 64, validation\_split 0.1. Optimiseur Adam, perte \texttt{categorical\_crossentropy}.
+
+\subsection*{Blocs résiduels}
+Bloc simplifié : deux conv 3$\times$3, addition du skip (adapté si stride$>$1), activation ReLU. Mini-architecture illustrative : blocs (32), (64 avec stride 2), (64), suivi de GlobalAveragePooling puis Dense.
+
+\section{Questions avancées}
+\subsection*{Segmentation (U-Net)}
+Sortie : carte de classes par pixel (H$\times$W$\times$C). L'upsampling (ou transposed conv) reconstruit la résolution spatiale et combine avec des features de l'encodeur (skip U-Net) pour affiner les contours et localiser finement.
+
+\subsection*{Détection (Bounding Boxes)}
+En plus de la classe, le réseau régresse les coordonnées $(x, y, w, h)$ des boîtes. Des têtes spécialisées (p.ex. YOLO/SSD) prédisent simultanément scores de classe et offsets de boîtes à partir de cartes de features convolutionnelles.
+
+\subsection*{Style Transfer}
+VGG16 pré-entraîné (sans top) sert d'extracteur de features figé. On optimise l'image générée pour minimiser :
+\begin{itemize}
+    \item \textbf{Content loss} : préserver le contenu (features d'un layer haut, ex. block5\_conv2).
+    \item \textbf{Style loss} : égaler les statistiques de Gram des couches style (ex. block1--block5) à celles de l'image de style.
+\end{itemize}
+L'optimisation met à jour les pixels de l'image générée, pas les poids du réseau.
+
+\section{Résultats attendus}
+\begin{itemize}
+    \item CNN basique CIFAR-10 : précision $\sim$70--80\% en 10 époques (indicatif).
+    \item Mini-ResNet illustratif : amélioration modeste mais meilleure stabilité du gradient.
+    \item Réponses théoriques sur segmentation, détection, style transfer.
+\end{itemize}
+
+\section*{Conclusion}
+Les CNN exploitent la structure spatiale pour l'extraction hiérarchique de features. Les connexions résiduelles permettent de dépasser la profondeur limitée par la dégradation. La segmentation et la détection étendent la classification à la localisation fine. Le style transfer illustre l'utilisation de features pré-entraînées pour optimiser directement les pixels d'une image cible.
+
+\section*{Référence au code source}
+Le code complet (script d'entraînement CNN, mini-ResNet, Dockerfile et documentation) est disponible sur le dépôt GitHub :
+\[
+\texttt{https://github.com/ThePerformer0/deep-learning-engineering-labs/tree/main/tp3-cnn-vision}
+\]
+
+\end{document}
+
