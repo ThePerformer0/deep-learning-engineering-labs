@@ -1,0 +1,71 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{amsmath}
+\geometry{hmargin=2.5cm,vmargin=2.5cm}
+
+\title{\textbf{TP4 : Segmentation avancée et données 3D}}
+\author{FEKE JIMMY WILSON \\ Master 2 Génie Informatique \\ Matricule : 21P474 \\ ENSPY}
+\date{8 Octobre 2025}
+
+\begin{document}
+\maketitle
+
+\section{Objectifs}
+\begin{itemize}
+    \item Maîtriser la segmentation sémantique avec U-Net.
+    \item Utiliser des métriques dédiées (Dice, IoU) et pertes adaptées aux classes rares.
+    \item Appliquer les bonnes pratiques MLOps (tracking, nommage des runs, packaging).
+    \item Introduire les convolutions 3D pour données volumétriques.
+    \item Comprendre les spécificités des données médicales (déséquilibre, faible volume).
+\end{itemize}
+
+\section{Partie 1 : Questions théoriques}
+\subsection*{Sortie d'un modèle de segmentation}
+La sortie est une carte de probabilités de taille $H \times W \times C$ (un canal par classe, ou $H \times W \times 1$ en binaire) et non un vecteur global comme en classification.
+
+\subsection*{Rôle du decoder U-Net et skip connections}
+Le decoder reconstruit la résolution spatiale via upsampling (Conv2DTranspose). Les skip connections concatènent les features de l'encodeur au decoder pour récupérer le contexte local fin. Contrairement à ResNet (addition), ici on concatène pour enrichir les canaux et restaurer les détails perdus par le pooling.
+
+\subsection*{Pertes pour classes rares}
+La cross-entropy seule pénalise peu les faux négatifs si la classe positive est minuscule (fond dominant). On privilégie Dice loss ou BCE+Dice pour mieux pondérer le recouvrement du foreground.
+
+\subsection*{Métriques custom (Dice, IoU) et MLflow}
+On calcule Dice/IoU via fonctions custom et on les loggue dans MLflow. Nommage de run strict : \texttt{unet\_<loss>\_<opt>\_img<size>} pour tracer l'architecture, l'optimiseur et la perte.
+
+\section{Partie 2 : U-Net 2D}
+\begin{itemize}
+    \item \textbf{Bloc conv} : Conv-BN-ReLU (×2).
+    \item \textbf{Encodeur} : Downsampling par MaxPool, filtres doublés à chaque niveau.
+    \item \textbf{Bottleneck} : Plus grand nombre de filtres.
+    \item \textbf{Decodeur} : Conv2DTranspose (upsampling) + concat skip, conv\_block.
+    \item \textbf{Sortie} : 1 canal (sigmoid) pour binaire ; softmax si multi-classes.
+\end{itemize}
+Métriques/ pertes : Dice, IoU, BCE, BCE+Dice. EarlyStopping recommandé.
+
+\section{Partie 3 : Conv3D et données volumétriques}
+\subsection*{Conv3D vs Conv2D}
+Le noyau Conv3D est $k_D \times k_H \times k_W$ et se déplace aussi sur la profondeur $D$ (empilement de slices). Indispensable pour exploiter la cohérence inter-slices.
+
+\subsection*{Contraintes mémoire}
+Conv3D est coûteux : on doit ajuster la profondeur d'entrée, le nombre de filtres et la taille des noyaux (souvent plus petits) et utiliser du pooling 3D. Batch size limité, besoin éventuel de patchs/rois.
+
+\section{Partie 4 : Résumé des métriques}
+\begin{itemize}
+    \item \textbf{Dice} : sensible aux petits objets, mesure le recouvrement (F1 segmentation).
+    \item \textbf{IoU} : plus stricte, pénalise davantage les faux positifs ; légèrement moins indulgente que Dice pour petites erreurs.
+\end{itemize}
+
+\section*{Référence au code source}
+Code et scripts (U-Net, métriques, logging, Conv3D démo) : \\
+\url{https://github.com/ThePerformer0/deep-learning-engineering-labs/tree/main/tp4-advanced-vision}
+
+\section*{Conclusion}
+U-Net combine localisation fine (skips) et contexte (encodeur). Les métriques/ pertes spécifiques (Dice/IoU, BCE+Dice) sont cruciales pour les classes rares. Les Conv3D ouvrent la voie à la volumétrie mais exigent des compromis mémoire. Le suivi MLflow et la conteneurisation assurent traçabilité et reproductibilité.
+
+\end{document}
+
